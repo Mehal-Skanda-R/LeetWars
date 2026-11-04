@@ -1,13 +1,12 @@
 # Milestone 1 — Public Arena
 
-## Implementation status — 4 November 2026
+## Implementation status — refreshed 4 November 2026
 
-- Frontend browsing is implemented on `feat/public-arena-milestone-1`: leaderboard, public player pages, public teams, team detail/roster, and loading/empty/error states.
-- The frontend reads only the typed `public_api_*` views and does not display fabricated LeetCode statistics.
-- The privacy migration is committed but has not been applied to the connected Supabase project.
-- Read-only inspection found that the connected database still has unfiltered profile and roster views, plus all privileges (including writes) granted on the public views. The migration now adds privacy filters and resets view grants to SELECT only. Treat production release as blocked until an isolated preview validates it.
-- Supabase GitHub integration is configured to apply migrations to production from `main`; automatic preview branches are disabled on the current plan. Do not merge this branch as a way to test the migration.
-- Details and the stepwise release sequence are in `docs/RELEASE_READINESS.md`.
+- Public browsing is released on `main`: leaderboard, public player pages, teams, team details, and clear loading/empty/error states.
+- Production migration `202611040001_private_by_default_public_views` is applied. Public views filter profiles by opt-in, and the database grants only `SELECT` to public roles.
+- Live browsing still needs the Vercel Production Supabase URL and publishable key. The site currently has no configured Supabase client.
+- This follow-up adds Google sign-in UI, leaderboard opt-in, public team creation/join, account provisioning, and a ten-member join limit. Its migration applies only after it is merged to `main`.
+- Supabase applies migrations to production from `main`; automatic preview branches are disabled on the current plan. Details and required configuration are in `docs/RELEASE_READINESS.md`.
 
 ## Goal
 Replace the demo-only dashboard with the first real, safe public experience while keeping the production `main` branch untouched until reviewed.
@@ -25,7 +24,7 @@ Replace the demo-only dashboard with the first real, safe public experience whil
 - Public profile and leaderboard queries must include only profiles explicitly opted into public visibility.
 - Never expose `profiles.id`, private profile fields, coins, or transaction history through public views.
 - Public views are deliberate allowlists, not general access to base tables.
-- The existing public views currently expose every profile. They must be revised before real users are connected.
+- The current public views expose only opted-in profiles; keep those filters and grants intact.
 - Existing direct-table SELECT policies for `profiles` and `player_stats` now restrict authenticated users to their own rows. Preserve that boundary.
 - Team pages show only public teams and their public rosters. Private team data remains unavailable to public visitors.
 
@@ -35,12 +34,12 @@ Replace the demo-only dashboard with the first real, safe public experience whil
 3. Add public player profile routes, respecting opt-in visibility.
 4. Add public team directory and public team detail/roster routes.
 5. Add a public Supabase data-access layer using only approved public views.
-6. Add a profile visibility migration and revised public views; review SQL before applying to production.
+6. Keep the production privacy migration and public views narrow; the follow-up participation migration must be reviewed before its production merge.
 7. Add tests/type checks and verify a Vercel preview before merging.
 
 ## Data prerequisites / blockers
-- Current `profiles` has no visibility column. A migration is required (e.g. `is_public boolean NOT NULL DEFAULT false`).
-- Current public views expose all profiles. Filter leaderboard/profile/member views by explicit public visibility.
+- The production `profiles.is_public` column defaults to false. Only profiles with explicit opt-in belong in the public profile and leaderboard views.
+- Migration `202611040002_account_team_participation.sql` provisions new auth accounts and scopes leaderboard/team mutations through authenticated RPCs.
 - Current `player_stats` contains XP, level and coins, but not LeetCode solved counts or difficulty breakdowns.
 - The existing UI's solved counts, weekly totals, streaks, rating and activity chart are sample data. They must not be shown as real statistics.
 - A separate LeetCode statistics model is needed before scheduled sync can populate solved counts, difficulty breakdowns, contest rating or activity history.

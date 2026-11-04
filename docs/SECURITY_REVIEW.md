@@ -4,39 +4,30 @@ Review date: 4 November 2026
 
 ## Current implementation
 
-- The browser has anonymous read access through `public_api_profiles`, `public_api_leaderboard`, `public_api_teams`, and `public_api_team_members` only.
-- The browser uses the Supabase publishable key. No service-role key, account session, or write action is present in client code.
-- Direct anonymous `SELECT` privileges are absent on `profiles`, `player_stats`, `teams`, and `team_members`. RLS is enabled on those tables; current policies are for authenticated users.
-- The live `public_api_*` views grant `anon` and `authenticated` all privileges, including `INSERT`, `UPDATE`, and `DELETE`. The repository migration now explicitly revokes those privileges from both roles and `PUBLIC`, then grants only `SELECT`.
-- The app displays LeetWars XP and level. It does not claim to provide LeetCode solved counts, ratings, streaks, or activity history.
-- Supabase GitHub integration is connected to this repository, targets `main`, and has production deployment enabled. Supabase preview branches are disabled; Vercel integration is not connected.
+- Anonymous Public Arena requests read only `public_api_profiles`, `public_api_leaderboard`, `public_api_teams`, and `public_api_team_members`.
+- Production migration `202611040001_private_by_default_public_views` filters profiles by `is_public = true`, filters public rosters to opted-in profiles, and grants the public roles `SELECT` only on those views.
+- Anonymous roles have no direct `SELECT` on `profiles`, `player_stats`, `teams`, or `team_members`.
+- Google sign-in and account/team controls are implemented on the feature branch. Migration `202611040002_account_team_participation.sql` must be reviewed before merge because the connected Supabase integration applies migrations from `main` to production.
+- The frontend uses only the Supabase publishable key. The public key is not a secret; service-role keys must never appear in the browser or in any `VITE_*` variable.
+- LeetWars XP and level are the only competition metrics shown. LeetCode sync and LeetCode metrics are not implemented.
 
-## Release-blocking live-database finding
+## Migration 2 security boundary
 
-Read-only inspection of the connected Supabase project found that its existing public views are owner-executed, over-granted, and currently do not implement the agreed privacy filter:
+- New accounts are provisioned with `is_public = false`, a generated handle, and zeroed default stats. Google display-name metadata is stored only in the private profile until the user opts into public visibility.
+- `set_public_profile_visibility(boolean)` changes only the caller's profile visibility.
+- `create_public_arena_team(text, text)` validates team fields, creates a public team, and adds its creator as leader in one transaction.
+- `join_public_arena_team(uuid)` checks that the team is public, serializes joins by locking the team row, is safe to retry, and enforces the 10-member product limit.
+- These functions run with a fixed empty search path, use fully qualified table and auth references, and are executable only by `authenticated`. They do not grant direct base-table insert privileges.
+- Team names and descriptions are public. Membership does not make a player's profile public; public roster views still require profile opt-in.
 
-- `public_api_profiles` returns all profile rows.
-- `public_api_leaderboard` returns player stats joined to all profiles.
-- `public_api_team_members` returns all members of public teams, regardless of player profile visibility.
-- `public_api_teams` filters to public teams and selects only team display fields.
+## Known risks and remaining work
 
-Supabase's dashboard reports no migrations applied. The repository migration adds `profiles.is_public NOT NULL DEFAULT false` and replaces the profile, leaderboard, and roster definitions with explicit public opt-in filters. It remains unapplied. Do not expose the current database views to public users until the migration is validated and applied through the approved release process.
-
-The current all-privileges grants are a production security issue: `public_api_profiles` and `public_api_teams` are simple views and may be updatable. The frontend itself only issues reads, but an anonymous caller can use the publishable key outside this UI. Apply the grant revocations before any public release. No change was made to the live project during this review.
-
-## Security Advisor finding
-
-The Supabase dashboard flags all four views as critical security-definer views. Current anonymous roles cannot directly select from the underlying tables. This is why the views use `security_invoker=false`: switching to invoker mode would require granting base-table access, and could expose private columns through direct REST requests. The mitigation is strict allowlisting, explicit privacy filters, view-only anonymous grants, and review of each definition. This tradeoff does not make the advisor warning disappear; recheck and document it after the migration. Do not grant anonymous access to base tables just to silence the warning.
-
-## Additional release requirements
-
-- Create or select an isolated non-production Supabase project, since automatic preview branches are unavailable in the connected project on its current plan.
-- Validate the migration and public view results in that project before any production merge.
-- Keep the exact Supabase project origin in Vercel `connect-src`; do not allow all `*.supabase.co` hosts.
-- Scheduled LeetCode synchronization needs a reliable, permitted source, server-side implementation, refresh/failure policy, and storage model. None is configured yet.
-- Google sign-in requires provider and redirect configuration, plus user-facing privacy controls. It is not required for anonymous public browsing.
-- Finish operator-specific legal/privacy text and conduct accessibility, CSP, and application testing before a public launch.
+- Supabase Security Advisor still reports four intentional security-definer-view warnings. The views keep base-table reads private while exposing a narrow public allowlist. Do not grant anonymous base-table access to silence the warnings; periodically review view definitions and grants.
+- Google OAuth credentials, provider enablement, site URL, and redirect allowlist require operator setup in Supabase Auth.
+- Vercel Production currently lacks the public Supabase URL and publishable key, so public data and account actions do not work until those environment variables are configured and the app is redeployed.
+- Rate limits, abuse monitoring, profile-name editing, private-team management, and legal/privacy operator details remain future work.
+- Scheduled LeetCode sync requires a reliable permitted source and a server-side implementation. Do not scrape LeetCode or present unsourced metrics as real.
 
 ## Verification
 
-The frontend changes passed `npm run typecheck`, `npm run build`, `npm audit --audit-level=high`, and `git diff --check` before this documentation update. No test script is configured. Repeat those checks after implementation changes and test public views against isolated preview data.
+The frontend changes pass `npm run typecheck`, `npm run build`, and `git diff --check`. No test script is configured. Database migration behavior must be smoke-tested after applying it in production because automatic Supabase preview branches are unavailable on the current plan.

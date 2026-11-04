@@ -2,29 +2,31 @@
 
 Last checked: 4 November 2026
 
-## Current state
+## Production state
 
-- The frontend reads public data only through the `public_api_*` views and has no browser-side write flows.
-- The connected Supabase project is `leetwars`. Its GitHub integration points at `Mehal-Skanda-R/LeetWars`, with `main` selected as the production branch and production deploy enabled.
-- Supabase automatic preview branches are disabled on the current plan. The dashboard says they require Pro. The Vercel integration is not connected.
-- The live database currently has four `public_api_*` views, but their definitions do not filter profiles by an explicit public opt-in. The team roster view also does not filter out members with private profiles.
-- Read-only grant inspection found `anon` and `authenticated` have all table privileges (including `INSERT`, `UPDATE`, and `DELETE`) on each current public view. The migration now revokes those grants from both roles and `PUBLIC`, then grants `SELECT` only.
-- The Supabase dashboard reports no migrations applied. The migration in this repository has not been applied.
-- Supabase Security Advisor flags the four views as security-definer views. Anonymous users currently have no direct SELECT privileges on `profiles`, `player_stats`, `teams`, or `team_members`; RLS on these tables is enabled and existing policies are scoped to authenticated users. The views intentionally provide a narrow public allowlist without granting anonymous access to those base tables. The migration documents this tradeoff and adds the missing public-visibility filters. Recheck the view definitions, grants, and advisor findings after applying it.
-- No LeetCode data provider or scheduled sync is configured. A GitHub repository connection deploys Supabase project changes; it does not fetch LeetCode statistics by itself.
+- `main` contains the Public Arena release. Supabase confirmed migration `202611040001_private_by_default_public_views` is applied; its public views filter private profiles and expose `SELECT` only to `anon` and `authenticated`.
+- The live site at `https://leetwars-nine.vercel.app` currently fails to load public rows. Browser inspection showed the frontend has no configured Supabase client, which means the Vercel Production build is missing `VITE_SUPABASE_URL` and/or `VITE_SUPABASE_PUBLISHABLE_KEY`.
+- Vercel reported a successful deployment status for the current `main` commit, but a successful build does not confirm the required environment variables are present.
+- The connected Supabase GitHub integration applies repository migrations from `main` to production. Supabase preview branches are disabled on the current plan, so a merge that adds a migration is a production database change.
+- Supabase Security Advisor still reports four intentional security-definer-view warnings. Keep the allowlisted view definitions and grants narrow; do not grant anonymous access to base tables to silence the warnings.
+- This feature branch adds migration `202611040002_account_team_participation.sql`. It provisions auth users with private profiles and zeroed stats, allows owners to opt in/out of the public leaderboard, creates public teams, and lets authenticated users join public teams up to the confirmed 10-member limit.
+- Google OAuth calls are implemented in the frontend. The Google provider and redirect URLs still need to be configured in Supabase Auth. No LeetCode sync/provider is configured.
 
-## Safe release sequence
+## Required production setup
 
-1. Keep work on `feat/public-arena-milestone-1`. Pushing this branch does not create a Supabase preview database under the current integration settings.
-2. Use a separate non-production Supabase project for migration validation, or enable Supabase preview branches on a plan that supports them. Do not use the current production-linked project as a test target.
-3. Review and apply `supabase/migrations/202611040001_private_by_default_public_views.sql` to the non-production project. Verify that default profiles remain private; the public views return only opted-in profiles and public teams; anon still cannot select from base tables; and only the four allowlisted views have anon SELECT grants.
-4. Configure Vercel Preview with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for that non-production project. The publishable key is browser-visible by design; never use a service-role key. The Vercel CSP currently allows only the configured LeetWars project URL, so update it alongside a different preview project URL.
-5. Verify the public leaderboard, profile routes, teams, empty states, and errors against preview data. Do not add or display LeetCode metrics until a reliable, permitted source and scheduled job are implemented.
-6. Treat merging to `main` as a production action: the connected Supabase integration is configured to apply repository database changes to production from `main`. Merge only after the preview checks pass and the operator explicitly approves the release.
+1. In Vercel project settings, set Production environment variables:
+   - `VITE_SUPABASE_URL=https://fvyhkhwhwubpeeawbakr.supabase.co`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY=<the project's publishable key>`
+   Use the publishable/anon key only; never use a `service_role` key in a browser build. Redeploy Production after saving the variables.
+2. In Supabase Auth, enable Google, add the Google OAuth client credentials, set the Site URL to `https://leetwars-nine.vercel.app`, and allow that origin as a redirect URL. The Google OAuth client must allow Supabase's callback URL shown in the provider settings.
+3. Review migration `202611040002_account_team_participation.sql`. Merging it to `main` applies it to production. It adds tightly scoped `SECURITY DEFINER` RPCs and an auth-user trigger; it grants no authenticated direct inserts to base tables and exposes no new anonymous database privileges.
+4. After production deployment, sign in with Google, confirm a new account is private by default, explicitly join the leaderboard, create a public team, and join it from a second account. Verify the team rejects member 11 and that users who did not opt into public profiles do not appear in public rosters.
+5. Recheck the live leaderboard and teams pages. A successful Vercel build alone is not an application smoke test.
 
-## Current release blockers
+## Remaining limits
 
-- The connected live views have not yet been updated with the private-by-default filters or read-only grants. Until that migration runs, anonymous callers may be able to write through updatable views.
-- There is no isolated preview database configured for this repository.
-- Scheduled LeetCode sync and Google sign-in are future work, not part of this public browsing release.
-- Legal, privacy, and accessibility drafts still need operator details and review before public launch.
+- Creating and joining **public** teams is included. Private-team creation, management, invitations, and co-leader actions are not part of this release.
+- Google OAuth cannot be used until an operator configures the provider and credentials in Supabase Auth.
+- The Vercel environment values must be set in the project's dashboard by a user with Vercel access. The Supabase publishable key is intended to be browser-visible; do not paste a service-role secret into Vercel's `VITE_*` variables.
+- LeetCode scheduled sync remains unimplemented until a reliable, permitted data source is selected.
+- Legal pages are drafts and require operator-specific content and review.

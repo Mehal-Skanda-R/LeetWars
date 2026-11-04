@@ -13,7 +13,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Fill in the Supabase project URL and publishable key in `.env.local`. Never use a Supabase `service_role` key in browser code or any `VITE_*` variable.
+Fill in the Supabase project URL and publishable key for an isolated, non-production project in `.env.local`. Never point a local or preview build at the current live project until its public views and grants have been fixed. Never use a Supabase `service_role` key in browser code or any `VITE_*` variable.
 
 ## Verification
 ```bash
@@ -35,12 +35,13 @@ See:
 - `docs/PRODUCT_DECISIONS.md`
 - `docs/MILESTONE_1_PLAN.md`
 
-The public data access layer reads only the allowlisted `public_api_*` views. The accompanying SQL migration adds private-by-default profile visibility and filters public profile, leaderboard and team-member views. Review and apply that migration to Supabase before connecting real user data.
+The public data access layer reads only the allowlisted `public_api_*` views. The migration adds private-by-default profile visibility and filters public profile, leaderboard and team-member views. It has **not** been applied to the connected Supabase project. Read `docs/RELEASE_READINESS.md` before changing the production-linked GitHub integration or merging to `main`.
 
 ## Current limitations
-- The existing dashboard UI still contains demo/sample records. It is not yet wired to the new public data access layer.
-- The current database stores XP and level, but does not yet store LeetCode solved counts, difficulty breakdowns, contest ratings or activity history.
-- Scheduled LeetCode synchronization, Google OAuth setup, profile pages, and public team pages are not yet implemented.
+- The public leaderboard, player profiles, team directory, and team detail pages are wired to the public views.
+- The current database stores LeetWars XP and level, but does not store LeetCode solved counts, difficulty breakdowns, contest ratings, or activity history.
+- Scheduled LeetCode synchronization and Google OAuth are not implemented. No reliable, permitted LeetCode data source has been selected.
+- The connected Supabase GitHub integration targets `main` and production. Automatic preview branches and the Vercel integration are not enabled.
 - Legal pages are drafts and require operator-specific content and qualified legal review before public launch.
 
 ## Security boundary

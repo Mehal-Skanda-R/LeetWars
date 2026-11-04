@@ -1,5 +1,14 @@
 # Milestone 1 — Public Arena
 
+## Implementation status — 4 November 2026
+
+- Frontend browsing is implemented on `feat/public-arena-milestone-1`: leaderboard, public player pages, public teams, team detail/roster, and loading/empty/error states.
+- The frontend reads only the typed `public_api_*` views and does not display fabricated LeetCode statistics.
+- The privacy migration is committed but has not been applied to the connected Supabase project.
+- Read-only inspection found that the connected database still has unfiltered profile and roster views, plus all privileges (including writes) granted on the public views. The migration now adds privacy filters and resets view grants to SELECT only. Treat production release as blocked until an isolated preview validates it.
+- Supabase GitHub integration is configured to apply migrations to production from `main`; automatic preview branches are disabled on the current plan. Do not merge this branch as a way to test the migration.
+- Details and the stepwise release sequence are in `docs/RELEASE_READINESS.md`.
+
 ## Goal
 Replace the demo-only dashboard with the first real, safe public experience while keeping the production `main` branch untouched until reviewed.
 

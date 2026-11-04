@@ -1,6 +1,6 @@
-# LeetWars — Phase 1
+# LeetWars
 
-Dark public LeetCode competition dashboard built with React, TypeScript, Vite, Tailwind CSS v4, Lucide React and Recharts.
+A dark, desktop-first LeetCode competition hub built with React, TypeScript, Vite, Tailwind CSS v4, Supabase and Recharts.
 
 ## Requirements
 - Node.js 20.19+ or 22.12+
@@ -9,32 +9,40 @@ Dark public LeetCode competition dashboard built with React, TypeScript, Vite, T
 ## Run locally
 ```bash
 npm install
+cp .env.example .env.local
 npm run dev
 ```
-Open the local URL printed by Vite (usually http://localhost:5173).
 
-## Dependency verification
+Fill in the Supabase project URL and publishable key for an isolated, non-production project in `.env.local`. Never point a local or preview build at the current live project until its public views and grants have been fixed. Never use a Supabase `service_role` key in browser code or any `VITE_*` variable.
+
+## Verification
 ```bash
-npm audit --audit-level=high
 npm run typecheck
-```
-Commit the generated `package-lock.json` after installation so deployments use a reproducible dependency tree.
-
-## Production build
-```bash
 npm run build
-npm run preview
+npm audit --audit-level=high
 ```
 
-## Phase 1 scope
-- Responsive dark dashboard
-- All-time and weekly demo leaderboard views
-- Search warriors
-- Add placeholder warriors with strict client-side format checks
-- Community activity chart and head-to-head comparison
-- Legal information routes: `/privacy-policy`, `/terms-of-service`, `/accessibility`
-- Vercel security headers in `vercel.json`
-- Sample data only; no live LeetCode connection, backend, authentication, database, or cookies
+## Product decisions
+- Public browsing does not require an account.
+- Player profiles are private by default; players must explicitly opt in to public discovery.
+- Google sign-in is the planned initial authentication method.
+- LeetCode statistics are intended to refresh on a schedule, subject to a reliable and permitted data source.
+- Public teams and their public rosters may be discoverable; private team data must remain private.
+- The first public release is an iterative MVP. Features must not be represented as working until implemented and tested.
+
+## Milestone 1
+See:
+- `docs/PRODUCT_DECISIONS.md`
+- `docs/MILESTONE_1_PLAN.md`
+
+The public data access layer reads only the allowlisted `public_api_*` views. The migration adds private-by-default profile visibility and filters public profile, leaderboard and team-member views. It has **not** been applied to the connected Supabase project. Read `docs/RELEASE_READINESS.md` before changing the production-linked GitHub integration or merging to `main`.
+
+## Current limitations
+- The public leaderboard, player profiles, team directory, and team detail pages are wired to the public views.
+- The current database stores LeetWars XP and level, but does not store LeetCode solved counts, difficulty breakdowns, contest ratings, or activity history.
+- Scheduled LeetCode synchronization and Google OAuth are not implemented. No reliable, permitted LeetCode data source has been selected.
+- The connected Supabase GitHub integration targets `main` and production. Automatic preview branches and the Vercel integration are not enabled.
+- Legal pages are drafts and require operator-specific content and qualified legal review before public launch.
 
 ## Security boundary
-The frontend checks improve usability but do not replace server-side validation. Do not put secrets in browser code or `VITE_*` environment variables. Review `docs/SECURITY.md` and `docs/THIRD_PARTY_LICENSES.md` before adding a backend or deploying a data-collecting service. Legal pages are drafts and require operator-specific content and legal review.
+Client-side validation is for usability only. Enforce all authorization and validation in Supabase policies or trusted server-side functions. Never allow the browser to award XP/coins or submit authoritative war results. Review `docs/SECURITY.md` before launch.

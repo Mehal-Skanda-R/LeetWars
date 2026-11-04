@@ -1,8 +1,8 @@
 # LeetWars security baseline
 
-## Current Phase 1 boundary
+## Current Public Arena boundary
 
-Phase 1 is a static React frontend. It has no authentication, server, database, API credentials, session cookies, or tracking cookies. The sample leaderboard and add-warrior interaction are in-memory demo data only. Client-side validation is for usability, not a security boundary.
+The React frontend supports anonymous reads from four allowlisted Supabase views. It has no authentication or browser-side write flows. The client uses only the Supabase project URL and publishable key; a publishable key is not a secret and must never be paired with broad database grants. No LeetCode sync is implemented.
 
 ## Implemented in this phase
 
@@ -11,7 +11,7 @@ Phase 1 is a static React frontend. It has no authentication, server, database, 
 - User-controlled strings are rendered as React text, never inserted with `dangerouslySetInnerHTML`.
 - External font requests have been removed.
 - Vercel deployment headers define CSP, HSTS, frame denial, MIME sniffing protection, referrer policy, and a restrictive permissions policy.
-- Legal routes are available at `/privacy-policy`, `/terms-of-service`, and `/accessibility`.
+- Public leaderboard, player, and team routes read only `public_api_*` views.
 - `.env*` files are ignored except `.env.example`; no secrets are required by the frontend.
 
 ## Production requirements before collecting user data
@@ -27,6 +27,14 @@ Phase 1 is a static React frontend. It has no authentication, server, database, 
 9. Test CSP in report-only mode before tightening or adding third-party integrations. Any required external API origin must be explicitly allowlisted; do not use wildcard sources.
 10. Run dependency audit, SAST, DAST, accessibility automation and manual keyboard/screen-reader testing in CI and before every production release.
 
+## Supabase public-view boundary
+
+- Anonymous users have no direct `SELECT` on the base tables. Keep that restriction.
+- The public views are owner-executed (`security_invoker=false`) so anonymous reads do not require granting access to base tables. Supabase Security Advisor flags this configuration because view owners bypass caller RLS. The view definitions therefore must stay narrow, explicitly filter public rows, and select only display fields. Review every change to these views and their grants.
+- The connected database currently grants `anon` and `authenticated` every table privilege on the four public views, including write privileges. The migration revokes those grants (and any `PUBLIC` grants) and re-grants `SELECT` only. Do not expose the current live views until that change has been validated and applied.
+- Do not silence the advisor by granting broad `SELECT` on base tables. That would expose private profile fields through direct PostgREST requests.
+- The connected live project currently has older unfiltered definitions for these views. Do not route public users to that project until the privacy migration has been validated and applied through an approved release path. See `docs/RELEASE_READINESS.md`.
+
 ## CSP notes
 
-The Vercel CSP allows inline styles because the current chart library and React style attributes require them. It does not allow inline scripts or `eval`. Revisit this when the UI architecture changes. HSTS with `includeSubDomains` must only be deployed when every covered subdomain supports HTTPS.
+The Vercel CSP allows inline styles because current React style attributes require them. It does not allow inline scripts or `eval`. Supabase `connect-src` is restricted to the configured project origin; change it to the exact origin when using a separate preview project. Do not use a wildcard Supabase origin. HSTS with `includeSubDomains` must only be deployed when every covered subdomain supports HTTPS.

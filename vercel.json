@@ -11,6 +11,14 @@
     {
       "source": "/accessibility",
       "destination": "/"
+    },
+    {
+      "source": "/players/:path*",
+      "destination": "/"
+    },
+    {
+      "source": "/teams/:path*",
+      "destination": "/"
     }
   ],
   "headers": [
@@ -19,7 +27,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; upgrade-insecure-requests"
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; upgrade-insecure-requests"
         },
         {
           "key": "Strict-Transport-Security",

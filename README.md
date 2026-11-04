@@ -35,13 +35,15 @@ See:
 - `docs/PRODUCT_DECISIONS.md`
 - `docs/MILESTONE_1_PLAN.md`
 
-The public data access layer reads only the allowlisted `public_api_*` views. The migration adds private-by-default profile visibility and filters public profile, leaderboard and team-member views. It has **not** been applied to the connected Supabase project. Read `docs/RELEASE_READINESS.md` before changing the production-linked GitHub integration or merging to `main`.
+The public data access layer reads only the allowlisted `public_api_*` views. Migration `202611040001_private_by_default_public_views.sql` was applied to the production-linked Supabase project through the `main` release. Migration `202611040002_account_team_participation.sql` adds Google-account provisioning, explicit leaderboard opt-in, public team creation, and capped team joining; it is pending release from the current feature branch. Read `docs/RELEASE_READINESS.md` before merging because `main` applies database migrations to production.
 
 ## Current limitations
-- The public leaderboard, player profiles, team directory, and team detail pages are wired to the public views.
+- The public leaderboard, player profiles, team directory, and team detail pages read from the allowlisted public views.
+- Google sign-in, joining the leaderboard, and public team create/join actions are implemented in the frontend and require migration `202611040002...` plus Google provider setup in Supabase Auth.
+- The current Vercel production deployment is missing `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`; public data and account actions remain unavailable until those Production environment variables are set and redeployed.
 - The current database stores LeetWars XP and level, but does not store LeetCode solved counts, difficulty breakdowns, contest ratings, or activity history.
-- Scheduled LeetCode synchronization and Google OAuth are not implemented. No reliable, permitted LeetCode data source has been selected.
-- The connected Supabase GitHub integration targets `main` and production. Automatic preview branches and the Vercel integration are not enabled.
+- Scheduled LeetCode synchronization is not implemented. No reliable, permitted LeetCode data source has been selected.
+- The connected Supabase GitHub integration targets `main` and production. Automatic Supabase preview branches are not enabled; Vercel builds are connected but the Production Supabase environment variables are missing.
 - Legal pages are drafts and require operator-specific content and qualified legal review before public launch.
 
 ## Security boundary

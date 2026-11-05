@@ -11,7 +11,7 @@ Review date: 5 November 2026
 - The frontend uses only the Supabase publishable key. The public key is not a secret; service-role keys must never appear in the browser or in any `VITE_*` variable.
 - LeetWars XP and level are the only competition metrics shown. LeetCode sync and LeetCode metrics are not implemented.
 - Optional LeetCode profile URLs are constrained by a database check and an authenticated RPC, are explicitly unverified, and are exposed only in the opted-in public-profile view.
-- LeetWars challenge code execution is implemented on the feature branch through authenticated Edge Functions and a self-hosted Judge0 runner. Submissions and hidden tests are private; the browser does not receive Judge0 tokens or the service-role key. It must not be enabled until the reviewed migrations/functions and a protected HTTPS runner are deployed. Never award XP from client-side checks.
+- LeetWars challenge code execution is implemented on the feature branch through authenticated Edge Functions and a Judge0 runner. Submissions and hidden tests are private; the browser does not receive runner credentials or the service-role key. The hosted runner receives user source and test input. Do not enable challenges until the reviewed migrations/functions and an HTTPS runner are configured. Never award XP from client-side checks.
 
 ## Migration 2 security boundary
 

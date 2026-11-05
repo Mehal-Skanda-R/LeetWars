@@ -1,4 +1,4 @@
-import { authenticatedUser, json, preflightOrReject } from '../_shared/challenge.ts'
+import { authenticatedUser, judgeHeaders, json, preflightOrReject } from '../_shared/challenge.ts'
 
 Deno.serve(async request => {
   const rejection = preflightOrReject(request)
@@ -25,9 +25,9 @@ Deno.serve(async request => {
     if (challengeError || !challenge) return json({ error: 'Challenge is unavailable.' }, 404)
 
     const judgeUrl = Deno.env.get('JUDGE0_URL')?.replace(/\/$/, '')
-    const authToken = Deno.env.get('JUDGE0_AUTH_TOKEN')
+    const judgeAuthHeaders = judgeHeaders()
     const languageId = Deno.env.get(language === 'javascript' ? 'JUDGE0_JAVASCRIPT_LANGUAGE_ID' : 'JUDGE0_PYTHON_LANGUAGE_ID')
-    if (!judgeUrl || !authToken || !languageId) return json({ error: 'The LeetWars judge is not configured yet.' }, 503)
+    if (!judgeUrl || !judgeAuthHeaders || !languageId) return json({ error: 'The LeetWars judge is not configured yet.' }, 503)
     const parsedLanguageId = Number(languageId)
     if (!Number.isInteger(parsedLanguageId) || parsedLanguageId < 1) return json({ error: 'The LeetWars judge language is not configured.' }, 503)
     const parsedJudgeUrl = new URL(judgeUrl)
@@ -45,8 +45,7 @@ Deno.serve(async request => {
       return json({ error: isRateLimited ? 'Submission limit reached. Wait a minute and try again.' : 'Submissions are temporarily unavailable.' }, isRateLimited ? 429 : 503)
     }
 
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    headers['X-Auth-Token'] = authToken
+    const headers: Record<string, string> = { ...judgeAuthHeaders, 'Content-Type': 'application/json' }
     const judgeResponse = await fetch(`${judgeUrl}/submissions?base64_encoded=false&wait=false`, {
       method: 'POST',
       headers,

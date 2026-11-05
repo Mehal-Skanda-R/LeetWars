@@ -17,7 +17,7 @@ Last checked: 5 November 2026
 
 1. In Supabase Auth, enable Google, add the Google OAuth client credentials, set the Site URL to `https://leetwars-nine.vercel.app`, and allow that origin as a redirect URL. The Google OAuth client must allow Supabase's callback URL shown in the provider settings.
 2. Review migration `202611050001_leetcode_profile_link.sql` before merging. It adds an authenticated self-service URL-setting RPC and exposes the optional unverified link only through the opted-in public-profile view.
-3. Follow `docs/CHALLENGES.md` to provision a dedicated Judge0 Linux host and configure Supabase Edge Function secrets. Deploy both Edge Functions only after Judge0 is protected with HTTPS and an auth token.
+3. If enabling coding challenges, follow `docs/CHALLENGES.md` to choose a hosted Judge0 CE plan that is confirmed $0 or configure a self-hosted runner, then set Supabase Edge Function secrets and deploy both functions. Keep credentials in Edge Function secrets.
 4. Review migration `202611050002_native_challenges.sql` before merging. It creates private hidden-test/submission tables, safe public catalog and leaderboard views, and a service-role-only XP award RPC.
 5. After production deployment, sign in with Google, confirm a new account is private by default, set a LeetCode profile URL, opt into the leaderboard, and verify the link appears only on the public profile. Run the challenge sample and a failing solution; verify only accepted results earn XP once.
 6. Recheck the live leaderboard, teams, profile-link, and challenge pages. A successful Vercel build alone is not an application smoke test.
@@ -28,6 +28,6 @@ Last checked: 5 November 2026
 - Google OAuth cannot be used until an operator configures the provider and credentials in Supabase Auth.
 - The Vercel environment values must be set in the project's dashboard by a user with Vercel access. The Supabase publishable key is intended to be browser-visible; do not paste a service-role secret into Vercel's `VITE_*` variables.
 - LeetCode scheduled sync remains unimplemented until official API access is available.
-- Production challenge submissions remain unavailable until the dedicated Judge0 host, secrets, functions, and migration are deployed.
-- The current feature branch adds profile URL and native challenge migrations. Neither has been applied to production. See `docs/CHALLENGES.md` for Judge0 host prerequisites; coding challenge submissions are unavailable until the Judge0 host, Edge Function secrets, functions, and migration are deployed.
+- Production challenge submissions remain unavailable until a Judge0 endpoint, Edge Function secrets, functions, and migration are configured. A VPS is not required if a hosted plan meets the $0 requirement.
+- The current feature branch adds profile URL and native challenge migrations. Neither has been applied to production. See `docs/CHALLENGES.md` for hosted free-plan caveats and setup steps.
 - Legal pages are drafts and require operator-specific content and review.

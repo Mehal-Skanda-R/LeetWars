@@ -1,4 +1,4 @@
-import { authenticatedUser, json, preflightOrReject, statusFromJudge } from '../_shared/challenge.ts'
+import { authenticatedUser, judgeHeaders, json, preflightOrReject, statusFromJudge } from '../_shared/challenge.ts'
 
 Deno.serve(async request => {
   const rejection = preflightOrReject(request)
@@ -26,17 +26,15 @@ Deno.serve(async request => {
     }
 
     const judgeUrl = Deno.env.get('JUDGE0_URL')?.replace(/\/$/, '')
-    const authToken = Deno.env.get('JUDGE0_AUTH_TOKEN')
-    if (!judgeUrl || !authToken) return json({ error: 'The LeetWars judge is not configured yet.' }, 503)
+    const judgeAuthHeaders = judgeHeaders()
+    if (!judgeUrl || !judgeAuthHeaders) return json({ error: 'The LeetWars judge is not configured yet.' }, 503)
     const parsedJudgeUrl = new URL(judgeUrl)
     if (parsedJudgeUrl.protocol !== 'https:' && parsedJudgeUrl.hostname !== 'localhost') {
       return json({ error: 'The code judge must use HTTPS.' }, 503)
     }
-    const headers: Record<string, string> = {}
-    headers['X-Auth-Token'] = authToken
     const judgeResponse = await fetch(
       `${judgeUrl}/submissions/${encodeURIComponent(submission.judge_token)}?base64_encoded=false&fields=status`,
-      { headers, signal: AbortSignal.timeout(6_000) },
+      { headers: judgeAuthHeaders, signal: AbortSignal.timeout(6_000) },
     )
     if (!judgeResponse.ok) return json({ error: 'Could not check the judge result.' }, 503)
     const judgeResult = await judgeResponse.json()

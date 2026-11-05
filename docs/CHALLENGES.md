@@ -1,44 +1,44 @@
 # LeetWars coding challenges
 
-## MVP behavior
+## Friend-group MVP
 
-- The first original challenge is **Pair Signal**, with JavaScript (Node.js) and Python 3 starter code.
-- The challenge catalog view exposes only its title, statement, input/output format, examples, starter code, and XP reward. Hidden tests remain in the base table, which public roles cannot read.
-- Submissions go through authenticated Supabase Edge Functions to a self-hosted Judge0 instance. The browser never receives the Judge0 token or Supabase service-role key.
-- Judge0 runs the whole hidden test batch with CPU, wall-time, and memory limits. Only an `Accepted` result can call the service-role-only XP RPC.
-- A player earns the challenge reward once. Public challenge rank/XP views include only players who opted into a public profile. Challenge XP is separate from LeetCode stats.
-- The initial submission limit is five submissions per player per minute. Change it only with abuse controls in place.
+- **Pair Signal** supports JavaScript (Node.js) and Python 3.
+- Public catalog data excludes hidden tests. Submissions go through authenticated Supabase Edge Functions; browser code never receives the Judge0 credential or Supabase service-role key.
+- Only an `Accepted` Judge0 result can award the challenge XP, once per player.
+- The initial submission limit is five per player per minute.
+- Challenge XP is LeetWars-native progress, separate from LeetCode statistics.
 
-## Judge0 hosting prerequisites
+## Zero-cost runner option
 
-Judge0 needs a dedicated Linux host capable of running its server, worker, Postgres, and Redis services. The official deployment uses privileged server/worker containers for its sandbox. Do not put this on a shared application host or expose an unauthenticated HTTP endpoint. Use a dedicated VM, HTTPS, a strong Judge0 authentication token, database passwords, firewall rules, and monitoring. Keep the Judge0 API token in Supabase Edge Function secrets only.
+For a small friend group, the code supports either self-hosted Judge0 or the hosted Judge0 CE API through RapidAPI. Judge0's official documentation lists a free Basic plan as an option; confirm the current quota, any card requirement, and the price shown for the Judge0 CE plan before subscribing because provider plans can change. The app itself does not need a VPS for this option.
 
-Use the upstream Judge0 CE deployment instructions and a fixed release version. The upstream v1.13.1 release documents Ubuntu 22.04/Docker Compose setup and fixes critical vulnerabilities in releases through v1.13.0. Review the upstream security advisories and release notes again before deploying, then pin server and worker images to the same reviewed release instead of `latest`.
+The hosted runner receives the submitted source and challenge test input. Tell players that code is sent to Judge0/RapidAPI to run. A free plan may impose quotas or become unavailable; when that happens, submissions fail with a retryable error and no XP is awarded. Do not fall back to running untrusted code in the browser or in a Supabase function.
 
-After the host is available, set these Supabase Edge Function secrets:
+After creating a Judge0 CE subscription on a confirmed $0 plan, set its endpoint and key as Supabase Edge Function secrets. Keep these values server-side:
 
 ```sh
 supabase secrets set \
-  JUDGE0_URL=https://<your-judge-domain> \
-  JUDGE0_AUTH_TOKEN=<the-Judge0-AUTHN_TOKEN> \
-  JUDGE0_JAVASCRIPT_LANGUAGE_ID=<id-from-your-judge-languages-endpoint> \
-  JUDGE0_PYTHON_LANGUAGE_ID=<id-from-your-judge-languages-endpoint> \
+  JUDGE0_URL=https://judge0-ce.p.rapidapi.com \
+  JUDGE0_RAPIDAPI_KEY=<your-RapidAPI-key> \
+  JUDGE0_RAPIDAPI_HOST=judge0-ce.p.rapidapi.com \
+  JUDGE0_JAVASCRIPT_LANGUAGE_ID=<Node.js-language-id> \
+  JUDGE0_PYTHON_LANGUAGE_ID=<Python-3-language-id> \
   LEETWARS_ORIGIN=https://leetwars-nine.vercel.app
 ```
 
-The `JUDGE0_URL` must use HTTPS in production. Configure Judge0's `AUTHN_TOKEN` to match `JUDGE0_AUTH_TOKEN`; its default request header is `X-Auth-Token`. Find language IDs from the deployed instance's `/languages` endpoint rather than assuming IDs match another Judge0 host. The self-hosted instance's operator can see user-submitted source code and challenge input; disclose that to players.
+Get language IDs from the selected endpoint's `/languages` response. For a self-hosted instance instead, set `JUDGE0_URL` and `JUDGE0_AUTH_TOKEN`; the functions use the `X-Auth-Token` header. When both credential types are set, the RapidAPI key takes precedence. Use HTTPS for every non-local runner.
 
-Deploy the functions only after the Judge0 endpoint and secrets are ready:
+Deploy the functions and apply migration `202611050002_native_challenges.sql` only after reviewing the exact Supabase project and the selected runner configuration:
 
 ```sh
 supabase functions deploy submit-challenge
 supabase functions deploy check-challenge
 ```
 
-Then apply `202611050002_native_challenges.sql` through the reviewed Supabase migration release. Do not test hidden-test execution against production with untrusted code before the host's network isolation, authentication, CPU/memory limits, and HTTPS have been verified.
+The migration adds private hidden-test/submission tables, public allowlisted catalog and leaderboard views, and a service-role-only XP award RPC. Do not apply it to production without explicitly verifying the project reference and reviewing the migration.
 
 ## Current limits
 
-- The MVP catalog contains one easy challenge. Challenge XP is a small LeetWars-native score, not LeetCode progress.
-- The challenge interface is present in the feature branch but submissions remain unavailable until migration `202611050002_native_challenges.sql`, both Edge Functions, and the self-hosted Judge0 secrets are deployed.
-- The Supabase Production project and Vercel Production have not been changed by this feature branch.
+- The catalog contains one easy challenge.
+- A free hosted runner is suitable only for light friend-group use and may have strict request limits, queues, or plan changes.
+- Production submissions are unavailable until the migration, both Edge Functions, and runner secrets are set up.

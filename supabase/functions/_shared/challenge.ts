@@ -25,6 +25,18 @@ export function json(body: unknown, status = 200): Response {
   })
 }
 
+export function judgeHeaders(): Record<string, string> | null {
+  const rapidApiKey = Deno.env.get('JUDGE0_RAPIDAPI_KEY')
+  if (rapidApiKey) {
+    return {
+      'X-RapidAPI-Key': rapidApiKey,
+      'X-RapidAPI-Host': Deno.env.get('JUDGE0_RAPIDAPI_HOST') ?? 'judge0-ce.p.rapidapi.com',
+    }
+  }
+  const authToken = Deno.env.get('JUDGE0_AUTH_TOKEN')
+  return authToken ? { 'X-Auth-Token': authToken } : null
+}
+
 export function adminClient(): SupabaseClient {
   const url = Deno.env.get('SUPABASE_URL')
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')

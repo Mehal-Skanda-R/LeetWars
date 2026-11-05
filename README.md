@@ -46,8 +46,7 @@ The public data access layer reads only allowlisted `public_api_*` views. Migrat
 - The current database stores LeetWars XP and level, but does not store LeetCode solved counts, difficulty breakdowns, contest ratings, or activity history.
 - Scheduled LeetCode synchronization is not implemented. No reliable, permitted LeetCode data source has been selected.
 - LeetCode profile URLs are optional and unverified. They appear only on profiles whose owners opt into public visibility.
-- LeetWars-hosted challenges run through a server-side Judge0 integration in this feature branch. The production judge host and Edge Function secrets are not configured yet, so submissions are not active in production.
-- The challenge MVP and self-hosted Judge0 setup are documented in `docs/CHALLENGES.md`; its judge host, Edge Function secrets, and migration still need production setup.
+- LeetWars-hosted challenges use a server-side Judge0 integration. The app supports a hosted Judge0 CE endpoint or a self-hosted runner; submissions remain inactive until the provider credentials, Edge Functions, and migration are configured. See `docs/CHALLENGES.md` for the $0 friend-group setup and free-plan caveats.
 - The connected Supabase GitHub integration targets `main` and production. Automatic Supabase preview branches are not enabled.
 - Legal pages are drafts and require operator-specific content and qualified legal review before public launch.
 

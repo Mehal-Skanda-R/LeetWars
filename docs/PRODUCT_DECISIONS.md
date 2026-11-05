@@ -3,7 +3,9 @@
 ## Confirmed
 | Area | Decision |
 |---|---|
-| LeetCode sync | Scheduled automatic sync |
+| LeetCode sync | Scheduled automatic sync, official API only |
+| LeetCode account reference | Optional user-submitted profile URL; not verified and no stats are synced until official API access is available |
+| LeetWars-native stats | Stats should come from LeetWars-hosted coding challenges, not self-reported LeetCode activity |
 | Player profile visibility | Private by default |
 | Authentication | Google sign-in via Supabase Auth |
 | Public browsing | No account required for public content |
@@ -19,8 +21,8 @@
 - Internal profile UUIDs, coins, and transaction history are not public.
 
 ## Still to decide before the corresponding feature
-- Scheduled LeetCode sync frequency, provider/data source, failure handling, and rate limits.
-- Whether public leaderboard ranking is by LeetCode problems solved, LeetWars XP, or separate leaderboard tabs.
-- Which LeetCode fields can be reliably and permissibly collected.
+- LeetCode sync frequency and official API access details (fields, authorization, failure handling, and rate limits).
+- Additional LeetWars challenge catalog, XP progression, and abuse controls beyond the initial self-hosted Judge0/JavaScript/Python setup.
+- Whether leaderboards rank by LeetWars challenge results, LeetCode metrics, or separate tabs.
 - War visibility and invitation rules.
 - XP/coin earning and spending rules.

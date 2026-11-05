@@ -2,11 +2,12 @@
 
 ## Current Public Arena boundary
 
-The React frontend supports anonymous reads from four allowlisted Supabase views and uses Google OAuth for account actions. Authenticated state changes go through narrowly scoped Supabase RPCs; the browser never receives a service-role key and does not directly insert into base tables. A publishable key is not a secret and must never be paired with broad database grants. No LeetCode sync is implemented.
+The React frontend supports anonymous reads from allowlisted Supabase views and uses Google OAuth for account actions. Authenticated state changes go through narrowly scoped Supabase RPCs; the browser never receives a service-role key and does not directly insert into base tables. A publishable key is not a secret and must never be paired with broad database grants. No LeetCode sync is implemented.
 
 ## Implemented in this phase
 
 - LeetCode handles are restricted to 1–25 ASCII letters, digits, or underscores and duplicate handles are rejected case-insensitively.
+- Optional LeetCode profile URLs are constrained to HTTPS `leetcode.com` profile paths. They are user-provided, not verified, and appear in public view data only when the owning profile is opted into public visibility.
 - Search input is capped at 80 characters.
 - User-controlled strings are rendered as React text, never inserted with `dangerouslySetInnerHTML`.
 - External font requests have been removed.
@@ -15,6 +16,7 @@ The React frontend supports anonymous reads from four allowlisted Supabase views
 - New auth users receive a private profile and zeroed LeetWars stats. A player must explicitly opt into public profile visibility before appearing in public profile and leaderboard views.
 - Public team creation and joining use security-definer RPCs with server-side length checks, public-team checks, idempotent joins, and a 10-member cap. The RPCs are executable by `authenticated`, not by `anon` or `PUBLIC`.
 - Public roster entries remain limited to profiles that opted in; team membership alone does not make a profile public.
+- LeetWars challenge code must be executed by a dedicated sandboxed judge, never by evaluating user submissions in the browser or in an unsandboxed Supabase function. Only trusted judge results may award XP.
 - `.env*` files are ignored except `.env.example`; no secrets are required by the frontend.
 
 ## Production requirements before collecting user data

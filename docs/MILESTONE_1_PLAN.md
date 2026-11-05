@@ -1,11 +1,11 @@
 # Milestone 1 — Public Arena
 
-## Implementation status — refreshed 4 November 2026
+## Implementation status — refreshed 5 November 2026
 
 - Public browsing is released on `main`: leaderboard, public player pages, teams, team details, and clear loading/empty/error states.
 - Production migration `202611040001_private_by_default_public_views` is applied. Public views filter profiles by opt-in, and the database grants only `SELECT` to public roles.
-- Live browsing still needs the Vercel Production Supabase URL and publishable key. The site currently has no configured Supabase client.
-- This follow-up adds Google sign-in UI, leaderboard opt-in, public team creation/join, account provisioning, and a ten-member join limit. Its migration applies only after it is merged to `main`.
+- The live Vercel site is connected to the production Supabase project and displays honest empty states when no public profiles or teams exist.
+- Account/team participation is released. Migration `202611040002_account_team_participation.sql` provisions private accounts, supports leaderboard opt-in, public team create/join, and a ten-member limit.
 - Supabase applies migrations to production from `main`; automatic preview branches are disabled on the current plan. Details and required configuration are in `docs/RELEASE_READINESS.md`.
 
 ## Goal
@@ -13,6 +13,9 @@ Replace the demo-only dashboard with the first real, safe public experience whil
 
 ## Confirmed product decisions
 - LeetCode profile statistics are intended to sync on a schedule.
+- LeetCode sync uses an official API only. No official data access is currently available or configured.
+- Players may add an optional unverified LeetCode profile URL. It is public only when the owner opts in.
+- Native LeetWars challenge stats should come from LeetWars-hosted coding challenges.
 - Player profiles are private by default.
 - Google sign-in is the only planned authentication method for the initial account flow.
 - Public browsing must not require an account.
@@ -43,7 +46,9 @@ Replace the demo-only dashboard with the first real, safe public experience whil
 - Current `player_stats` contains XP, level and coins, but not LeetCode solved counts or difficulty breakdowns.
 - The existing UI's solved counts, weekly totals, streaks, rating and activity chart are sample data. They must not be shown as real statistics.
 - A separate LeetCode statistics model is needed before scheduled sync can populate solved counts, difficulty breakdowns, contest rating or activity history.
-- Do not implement scraping or scheduled jobs until a stable, permitted data source and refresh policy have been evaluated. Never represent a failed or unavailable sync as successful.
+- Migration `202611050001_leetcode_profile_link.sql` and `202611050002_native_challenges.sql`, plus `submit-challenge` and `check-challenge` Edge Functions, are in the active feature branch and are not applied to production.
+- The initial LeetWars challenge uses a self-hosted Judge0 runner. Production setup requires a dedicated Linux host, HTTPS, a Judge0 auth token, language IDs, deployed Edge Functions, and a reviewed database migration.
+- Do not implement LeetCode scraping or scheduled jobs without authorized official API access. Never represent an unavailable sync as successful.
 - Google OAuth setup requires configuring the Google provider and redirect URLs in Supabase and the deployed app. No credentials belong in source control.
 
 ## Suggested implementation order
@@ -59,5 +64,6 @@ Do not merge until:
 - Private profiles never appear in public queries.
 - Anonymous visitors can read only the approved public views.
 - No browser client can write XP, coins, or competition results directly.
+- Only the trusted Judge0 result can award challenge XP; users can earn XP once per challenge.
 - Empty and failed data states are clear and do not fall back to fabricated data.
 - `npm run typecheck`, `npm run build`, and `npm audit --audit-level=high` have been run and reviewed.

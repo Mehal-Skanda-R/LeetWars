@@ -26,7 +26,9 @@ npm audit --audit-level=high
 - Public browsing does not require an account.
 - Player profiles are private by default; players must explicitly opt in to public discovery.
 - Google sign-in is the planned initial authentication method.
-- LeetCode statistics are intended to refresh on a schedule, subject to a reliable and permitted data source.
+- LeetCode statistics are intended to refresh on a schedule through an official API only; approved access has not been identified.
+- Players may add an optional LeetCode profile URL. It is user-provided, unverified, and does not sync statistics.
+- LeetWars-native challenge stats come from accepted LeetWars-hosted coding challenges, not LeetCode metrics.
 - Public teams and their public rosters may be discoverable; private team data must remain private.
 - The first public release is an iterative MVP. Features must not be represented as working until implemented and tested.
 
@@ -35,15 +37,18 @@ See:
 - `docs/PRODUCT_DECISIONS.md`
 - `docs/MILESTONE_1_PLAN.md`
 
-The public data access layer reads only the allowlisted `public_api_*` views. Migration `202611040001_private_by_default_public_views.sql` was applied to the production-linked Supabase project through the `main` release. Migration `202611040002_account_team_participation.sql` adds Google-account provisioning, explicit leaderboard opt-in, public team creation, and capped team joining; it is pending release from the current feature branch. Read `docs/RELEASE_READINESS.md` before merging because `main` applies database migrations to production.
+The public data access layer reads only allowlisted `public_api_*` views. Migrations `202611040001_private_by_default_public_views.sql` and `202611040002_account_team_participation.sql` are applied to the production-linked Supabase project through the `main` release. Read `docs/RELEASE_READINESS.md` before merging migrations because `main` applies them to production.
 
 ## Current limitations
 - The public leaderboard, player profiles, team directory, and team detail pages read from the allowlisted public views.
-- Google sign-in, joining the leaderboard, and public team create/join actions are implemented in the frontend and require migration `202611040002...` plus Google provider setup in Supabase Auth.
-- The current Vercel production deployment is missing `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`; public data and account actions remain unavailable until those Production environment variables are set and redeployed.
+- Google sign-in, leaderboard opt-in, and public team create/join actions are implemented. The Google provider still needs setup in Supabase Auth before users can sign in.
+- The Vercel production deployment is connected to Supabase; public browsing shows empty states until players opt in or create teams.
 - The current database stores LeetWars XP and level, but does not store LeetCode solved counts, difficulty breakdowns, contest ratings, or activity history.
 - Scheduled LeetCode synchronization is not implemented. No reliable, permitted LeetCode data source has been selected.
-- The connected Supabase GitHub integration targets `main` and production. Automatic Supabase preview branches are not enabled; Vercel builds are connected but the Production Supabase environment variables are missing.
+- LeetCode profile URLs are optional and unverified. They appear only on profiles whose owners opt into public visibility.
+- LeetWars-hosted challenges run through a server-side Judge0 integration in this feature branch. The production judge host and Edge Function secrets are not configured yet, so submissions are not active in production.
+- The challenge MVP and self-hosted Judge0 setup are documented in `docs/CHALLENGES.md`; its judge host, Edge Function secrets, and migration still need production setup.
+- The connected Supabase GitHub integration targets `main` and production. Automatic Supabase preview branches are not enabled.
 - Legal pages are drafts and require operator-specific content and qualified legal review before public launch.
 
 ## Security boundary

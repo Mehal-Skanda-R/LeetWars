@@ -1,18 +1,28 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Activity, ChevronRight, Menu, Plus, Swords, Trophy, Users, X } from 'lucide-react'
+import { Activity, ChevronRight, Code2, Menu, Plus, Swords, Trophy, Users, X } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import {
   createPublicArenaTeam,
+  checkChallengeSubmission,
+  getMyChallengeSlugs,
+  getPublicChallengeLeaderboard,
+  getPublicChallenges,
   getPublicLeaderboard,
   getPublicProfiles,
   getPublicTeamMembers,
   getPublicTeams,
   getMyTeamIds,
+  getMyLeetCodeProfileUrl,
   getMyPublicVisibility,
   joinPublicArenaTeam,
   setMyPublicVisibility,
+  setMyLeetCodeProfileUrl,
+  submitChallenge,
+  validateLeetCodeProfileUrl,
   type PublicArenaResult,
+  type PublicChallenge,
+  type PublicChallengeLeaderboardEntry,
   type PublicLeaderboardEntry,
   type PublicProfile,
   type PublicTeam,
@@ -45,6 +55,9 @@ function route() {
   if (parts[0] === 'players' && parts[1]) return { page: 'player' as const, id: parts[1] }
   if (parts[0] === 'teams' && parts[1]) return { page: 'team' as const, id: parts[1] }
   if (parts[0] === 'teams') return { page: 'teams' as const }
+  if (parts[0] === 'account') return { page: 'account' as const }
+  if (parts[0] === 'challenges' && parts[1]) return { page: 'challenge' as const, slug: parts[1] }
+  if (parts[0] === 'challenges') return { page: 'challenges' as const }
   if (['privacy-policy', 'terms-of-service', 'accessibility'].includes(parts[0] ?? '')) return { page: 'legal' as const }
   return { page: 'leaderboard' as const }
 }
@@ -143,7 +156,7 @@ export default function App() {
   }
 
   if (current.page === 'legal') return <LegalPage />
-  const title = current.page === 'leaderboard' ? 'Public leaderboard' : current.page === 'teams' ? 'Public teams' : current.page === 'player' ? 'Player profile' : 'Team details'
+  const title = current.page === 'leaderboard' ? 'Public leaderboard' : current.page === 'teams' ? 'Public teams' : current.page === 'player' ? 'Player profile' : current.page === 'account' ? 'Profile settings' : current.page === 'challenges' || current.page === 'challenge' ? 'Coding challenges' : 'Team details'
   return <div className="app-shell">
     <aside className={`sidebar ${mobileNav ? 'sidebar-open' : ''}`} aria-label="Main sidebar">
       <a className="brand" href="/"><span className="brand-mark"><Swords size={21}/></span><span>leet<span className="brand-accent">wars</span></span><button type="button" className="mobile-close" aria-label="Close navigation" onClick={event => { event.preventDefault(); setMobileNav(false) }}><X size={18}/></button></a>
@@ -151,17 +164,20 @@ export default function App() {
       <nav className="nav-list" aria-label="Arena navigation">
         <a className={`nav-item ${current.page === 'leaderboard' ? 'active' : ''}`} aria-current={current.page === 'leaderboard' ? 'page' : undefined} href="/"><Trophy size={18}/><span>Leaderboard</span></a>
         <a className={`nav-item ${current.page === 'teams' || current.page === 'team' ? 'active' : ''}`} aria-current={current.page === 'teams' || current.page === 'team' ? 'page' : undefined} href="/teams"><Users size={18}/><span>Teams</span></a>
+        <a className={`nav-item ${current.page === 'challenges' || current.page === 'challenge' ? 'active' : ''}`} aria-current={current.page === 'challenges' || current.page === 'challenge' ? 'page' : undefined} href="/challenges"><Code2 size={18}/><span>Challenges</span></a>
       </nav>
       <div className="sidebar-bottom"><div className="season-card"><div className="season-icon"><Activity size={17}/></div><div><b>LeetWars</b><small>Scheduled sync planned</small></div></div><div className="sidebar-user"><div className="avatar">LW</div><div><b>Public browsing</b><small>No account required</small></div></div></div>
     </aside>
     {mobileNav && <button type="button" className="scrim" aria-label="Close navigation menu" onClick={() => setMobileNav(false)}/>}
     <main className="main-area">
-      <header className="topbar"><button type="button" className="mobile-menu" aria-label="Open navigation" aria-expanded={mobileNav} onClick={() => setMobileNav(true)}><Menu size={20}/></button><div className="breadcrumb">Arena <ChevronRight size={14}/> <span>{title}</span></div><div className="top-actions">{user ? <><span className="signed-in-label">Signed in</span><button className="secondary-button header-button" type="button" onClick={signOut}>Sign out</button></> : <button className="primary-button header-button" type="button" disabled={!authReady || !isSupabaseConfigured} onClick={() => void signIn()}>{!isSupabaseConfigured ? 'Sign-in setup needed' : 'Sign in with Google'}</button>}</div></header>
+      <header className="topbar"><button type="button" className="mobile-menu" aria-label="Open navigation" aria-expanded={mobileNav} onClick={() => setMobileNav(true)}><Menu size={20}/></button><div className="breadcrumb">Arena <ChevronRight size={14}/> <span>{title}</span></div><div className="top-actions">{user ? <><a className="secondary-button header-button" href="/account">Profile settings</a><button className="secondary-button header-button" type="button" onClick={signOut}>Sign out</button></> : <button className="primary-button header-button" type="button" disabled={!authReady || !isSupabaseConfigured} onClick={() => void signIn()}>{!isSupabaseConfigured ? 'Sign-in setup needed' : 'Sign in with Google'}</button>}</div></header>
       <div className="content-wrap">
         {actionMessage && <div className="action-message" role="status"><span>{actionMessage}</span><button type="button" className="icon-button" aria-label="Dismiss message" onClick={() => setActionMessage('')}><X size={16}/></button></div>}
         {current.page === 'leaderboard' && <Leaderboard user={user} onSignIn={signIn} onMessage={setActionMessage} />}
         {current.page === 'teams' && <Teams user={user} onSignIn={signIn} onJoin={joinTeam} onCreate={createTeam} joinedTeamIds={joinedTeamIds} />}
         {current.page === 'player' && <PlayerProfile publicId={current.id} />}
+        {current.page === 'account' && <AccountSettings user={user} onSignIn={signIn} />}
+        {(current.page === 'challenges' || current.page === 'challenge') && <Challenges user={user} slug={current.page === 'challenge' ? current.slug : null} onSignIn={signIn} />}
         {current.page === 'team' && <TeamDetail id={current.id} user={user} onSignIn={signIn} onJoin={joinTeam} joined={joinedTeamIds.includes(current.id)} />}
       </div>
       <footer className="site-footer"><span>LeetWars · Public Arena</span><nav aria-label="Legal information"><a href="/privacy-policy">Privacy</a><a href="/terms-of-service">Terms</a><a href="/accessibility">Accessibility</a></nav></footer>
@@ -277,13 +293,154 @@ function CreateTeamDialog({ onClose, onCreate }: { onClose: () => void; onCreate
 function PlayerProfile({ publicId }: { publicId: string }) {
   const profiles = useLoad(getPublicProfiles, 'profiles')
   const leaderboard = useLoad(getPublicLeaderboard, 'leaderboard')
+  const challengeLeaderboard = useLoad(getPublicChallengeLeaderboard, 'challenge-leaderboard')
   if (profiles.status === 'loading' || leaderboard.status === 'loading') return <><PageHeading eyebrow="PUBLIC PLAYER" title="Player profile" description="Loading public profile…"/><div className="panel-state" role="status">Loading public profile…</div></>
   if (profiles.status === 'error') return <><PageHeading eyebrow="PUBLIC PLAYER" title="Player profile" description="This profile could not be loaded."/><StateMessage state={profiles} noun="the profile"/></>
   const profile = profiles.data.find(item => item.public_id === publicId)
   if (!profile) return <><PageHeading eyebrow="PUBLIC PLAYER" title="Profile unavailable" description="This profile is not public or could not be found."/><div className="empty-state" role="status">Only profiles opted into public visibility can be viewed.</div><a className="secondary-button inline-link" href="/">Back to leaderboard</a></>
   const stats = leaderboard.status === 'ready' ? leaderboard.data.find(item => item.public_id === publicId) : undefined
   const initials = (profile.display_name || profile.handle).trim().slice(0, 2).toUpperCase()
-  return <><PageHeading eyebrow="PUBLIC PLAYER" title={profile.display_name} description={`@${profile.handle}`}/><section className="profile-card"><div className="profile-avatar">{initials}</div><div><div className="eyebrow">PUBLIC PROFILE</div><h2>{profile.display_name}</h2><p>@{profile.handle}</p></div></section>{leaderboard.status === 'error' ? <StateMessage state={leaderboard} noun="player statistics"/> : stats ? <section className="stats-grid profile-stats"><Stat label="LeetWars XP" value={stats.total_xp.toLocaleString()}/><Stat label="Level" value={String(stats.level)}/><Stat label="Leaderboard rank" value={`#${stats.leaderboard_rank}`}/></section> : <div className="panel-state">LeetWars XP and level are not available for this profile yet.</div>}<div className="disclaimer"><Activity size={14}/> LeetCode statistics and activity history are not available in this release.</div></>
+  const challengeStats = challengeLeaderboard.status === 'ready' ? challengeLeaderboard.data.find(row => row.public_id === publicId) : undefined
+  return <><PageHeading eyebrow="PUBLIC PLAYER" title={profile.display_name} description={`@${profile.handle}`}/><section className="profile-card"><div className="profile-avatar">{initials}</div><div><div className="eyebrow">PUBLIC PROFILE</div><h2>{profile.display_name}</h2><p>@{profile.handle}</p></div></section>{profile.leetcode_profile_url && <section className="external-profile-link"><div><strong>LeetCode profile</strong><small>User-provided link · ownership not verified · stats are not synced</small></div><a className="secondary-button" href={profile.leetcode_profile_url} target="_blank" rel="noopener noreferrer">Open profile <ChevronRight size={15}/></a></section>}{leaderboard.status === 'error' ? <StateMessage state={leaderboard} noun="player statistics"/> : stats ? <section className="stats-grid profile-stats"><Stat label="LeetWars XP" value={stats.total_xp.toLocaleString()}/><Stat label="Level" value={String(stats.level)}/><Stat label="Leaderboard rank" value={`#${stats.leaderboard_rank}`}/></section> : <div className="panel-state">LeetWars XP and level are not available for this profile yet.</div>}<section className="challenge-profile-stats"><h2>LeetWars challenge stats</h2>{challengeLeaderboard.status === 'error' ? <StateMessage state={challengeLeaderboard} noun="challenge statistics"/> : challengeStats ? <div className="stats-grid profile-stats"><Stat label="Challenges solved" value={String(challengeStats.challenges_solved)}/><Stat label="Challenge XP" value={challengeStats.challenge_xp.toLocaleString()}/><Stat label="Challenge rank" value={`#${challengeStats.challenge_rank}`}/></div> : challengeLeaderboard.status === 'ready' ? <div className="panel-state">No accepted challenge solutions are listed for this public profile yet.</div> : <div className="panel-state" role="status">Loading challenge stats…</div>}</section><div className="disclaimer"><Activity size={14}/> LeetCode statistics and activity history are not available in this release.</div></>
+}
+
+function AccountSettings({ user, onSignIn }: { user: User | null; onSignIn: () => Promise<void> }) {
+  const [profileUrl, setProfileUrl] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    if (!user) {
+      setProfileUrl('')
+      setLoading(false)
+      return () => { active = false }
+    }
+    setLoading(true)
+    void getMyLeetCodeProfileUrl(user.id).then(result => {
+      if (!active) return
+      setLoading(false)
+      if (result.error) setError(result.error)
+      else setProfileUrl(result.data ?? '')
+    })
+    return () => { active = false }
+  }, [user?.id])
+
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const validated = validateLeetCodeProfileUrl(profileUrl)
+    if (validated.error) {
+      setError(validated.error)
+      setMessage('')
+      return
+    }
+    setSaving(true)
+    setError('')
+    setMessage('')
+    const result = await setMyLeetCodeProfileUrl(validated.url)
+    setSaving(false)
+    if (result.error) setError(result.error)
+    else {
+      setProfileUrl(result.data ?? '')
+      setMessage(validated.url ? 'Your profile link has been saved.' : 'Your profile link has been removed.')
+    }
+  }
+
+  return <>
+    <PageHeading eyebrow="ACCOUNT" title="Profile settings" description="Add an optional link to your LeetCode profile."/>
+    {!user ? <section className="panel account-panel"><p>Sign in to manage your profile link.</p><button className="primary-button" type="button" onClick={() => void onSignIn()}>Sign in with Google</button></section> : <section className="panel account-panel"><form onSubmit={event => void save(event)}><label htmlFor="leetcode-profile-url">LEETCODE PROFILE URL <span>OPTIONAL</span></label><input className="account-input" id="leetcode-profile-url" type="url" inputMode="url" autoComplete="url" placeholder="https://leetcode.com/u/yourname/" value={profileUrl} maxLength={200} onChange={event => { setProfileUrl(event.target.value); setError(''); setMessage('') }} disabled={loading || saving}/><p className="account-help">This link is not verified and does not sync LeetCode statistics. It appears on your public LeetWars profile only while your profile is public.</p>{error && <p className="field-error" role="alert">{error}</p>}{message && <p className="account-success" role="status">{message}</p>}<button className="primary-button" type="submit" disabled={loading || saving}>{loading ? 'Loading…' : saving ? 'Saving…' : 'Save profile link'}</button></form></section>}
+  </>
+}
+
+function Challenges({ user, slug, onSignIn }: { user: User | null; slug: string | null; onSignIn: () => Promise<void> }) {
+  const catalog = useLoad(getPublicChallenges, 'challenge-catalog')
+  const [leaderboardRefresh, setLeaderboardRefresh] = useState(0)
+  const leaderboard = useLoad(getPublicChallengeLeaderboard, `challenge-leaderboard-${leaderboardRefresh}`)
+  const [completed, setCompleted] = useState<string[]>([])
+  const [language, setLanguage] = useState<'javascript' | 'python'>('javascript')
+  const [sourceCode, setSourceCode] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [pendingSubmissionId, setPendingSubmissionId] = useState<string | null>(null)
+  const [result, setResult] = useState('')
+  const [error, setError] = useState('')
+
+  const challenge = catalog.status === 'ready' ? catalog.data.find(item => item.slug === slug) ?? (!slug ? catalog.data[0] : undefined) : undefined
+
+  useEffect(() => {
+    if (!user) { setCompleted([]); return }
+    let active = true
+    void getMyChallengeSlugs(user.id).then(slugs => { if (active) setCompleted(slugs) })
+    return () => { active = false }
+  }, [user?.id])
+
+  useEffect(() => {
+    if (challenge) setSourceCode(language === 'javascript' ? challenge.starter_javascript : challenge.starter_python)
+    setResult('')
+    setError('')
+  }, [challenge?.slug, language])
+
+  const run = async () => {
+    if (!user) { await onSignIn(); return }
+    if (!challenge) return
+    setSubmitting(true)
+    setError('')
+    let submissionId = pendingSubmissionId
+    if (!submissionId) {
+      setResult('Submitting to the LeetWars judge…')
+      const started = await submitChallenge(challenge.slug, language, sourceCode)
+      if (started.error !== null || started.data === null) {
+        setSubmitting(false)
+        setResult('')
+        setError(started.error)
+        return
+      }
+      submissionId = started.data
+      setPendingSubmissionId(submissionId)
+    }
+    for (let attempt = 0; attempt < 40; attempt++) {
+      await new Promise(resolve => window.setTimeout(resolve, 1500))
+      const checked = await checkChallengeSubmission(submissionId)
+      if (checked.error !== null || checked.data === null) {
+        setSubmitting(false)
+        setResult('')
+        setError(checked.error)
+        return
+      }
+      if (checked.data.status === 'queued' || checked.data.status === 'processing') {
+        setResult(checked.data.status === 'queued' ? 'Waiting in the judge queue…' : 'Running your code…')
+        continue
+      }
+      setSubmitting(false)
+      setPendingSubmissionId(null)
+      if (checked.data.status === 'accepted') {
+        setCompleted(values => values.includes(challenge.slug) ? values : [...values, challenge.slug])
+        setLeaderboardRefresh(value => value + 1)
+        setResult(checked.data.xp_awarded > 0 ? `Accepted — +${checked.data.xp_awarded} LeetWars challenge XP.` : 'Accepted — you already earned XP for this challenge.')
+      } else {
+        const labels: Record<string, string> = { wrong_answer: 'Some test cases did not pass.', compile_error: 'Your code did not compile.', runtime_error: 'Your code stopped with a runtime error.', time_limit: 'Your code exceeded the time limit.', judge_error: 'The judge could not finish this run.' }
+        setResult(labels[checked.data.status] ?? 'The judge could not finish this run.')
+      }
+      return
+    }
+    setSubmitting(false)
+    setResult('The judge is taking longer than expected. Check this same submission again after a short wait.')
+  }
+
+  return <>
+    <PageHeading eyebrow="LEETWARS PRACTICE" title="Coding challenges" description="Solve original LeetWars challenges. Only accepted judge results earn challenge XP."/>
+    <StateMessage state={catalog} noun="the challenge catalog"/>
+    {catalog.status === 'ready' && catalog.data.length === 0 && <div className="empty-state">No challenges have been published yet.</div>}
+    {catalog.status === 'ready' && challenge && <div className="challenge-layout"><section className="panel challenge-panel"><div className="challenge-title"><div><span className={`difficulty-tag ${challenge.difficulty}`}>{challenge.difficulty}</span><h2>{challenge.title}</h2></div><span className="challenge-reward">{challenge.xp_reward} XP</span></div><p className="challenge-description">{challenge.description}</p><h3>Input</h3><p>{challenge.input_format}</p><h3>Output</h3><p>{challenge.output_format}</p><div className="sample-grid"><div><h3>Sample input</h3><pre>{challenge.sample_input}</pre></div><div><h3>Expected output</h3><pre>{challenge.sample_output}</pre></div></div><p className="account-help">Submissions run in a sandbox. XP is awarded once per challenge. Your challenge stats appear publicly only if your profile is public.</p><div className="challenge-catalog">{catalog.data.map(item => <a className={item.slug === challenge.slug ? 'challenge-catalog-item selected' : 'challenge-catalog-item'} key={item.slug} href={`/challenges/${encodeURIComponent(item.slug)}`}><span>{item.title}</span><small>{item.difficulty} · {item.xp_reward} XP{completed.includes(item.slug) ? ' · solved' : ''}</small></a>)}</div></section><section className="panel challenge-editor"><div className="editor-toolbar"><label htmlFor="challenge-language">LANGUAGE</label><select id="challenge-language" value={language} disabled={submitting || pendingSubmissionId !== null} onChange={event => setLanguage(event.target.value as 'javascript' | 'python')}><option value="javascript">JavaScript (Node.js)</option><option value="python">Python 3</option></select></div><label className="sr-only" htmlFor="challenge-source">Your solution</label><textarea id="challenge-source" spellCheck={false} value={sourceCode} maxLength={16_000} disabled={submitting || pendingSubmissionId !== null} onChange={event => setSourceCode(event.target.value)} /><button className="primary-button" type="button" disabled={submitting || (!pendingSubmissionId && !sourceCode.trim())} onClick={() => void run()}>{submitting ? 'Checking…' : pendingSubmissionId ? 'Check result' : user ? 'Submit solution' : 'Sign in to submit'}</button>{error && <p className="field-error" role="alert">{error}</p>}{result && <p className="judge-result" role="status">{result}</p>}</section></div>}
+    {slug && catalog.status === 'ready' && !challenge && <div className="empty-state" role="status">This challenge is unavailable. <a href="/challenges">Browse challenges</a></div>}
+    <section className="panel leaderboard-panel challenge-board"><div className="panel-heading"><div><div className="title-with-icon"><Trophy size={18}/><h2>Challenge leaderboard</h2></div><p>Ranked by XP from accepted LeetWars challenges.</p></div></div><StateMessage state={leaderboard} noun="the challenge leaderboard"/>{leaderboard.status === 'ready' && (leaderboard.data.length ? <div className="table-scroll"><table><thead><tr><th scope="col">RANK</th><th scope="col">PLAYER</th><th scope="col">CHALLENGES</th><th scope="col">CHALLENGE XP</th></tr></thead><tbody>{leaderboard.data.map(row => <ChallengeLeaderboardRow key={row.public_id} row={row}/>)}</tbody></table></div> : <div className="empty-state" role="status">No public challenge completions yet.</div>)}</section>
+    <div className="disclaimer"><Activity size={14}/> LeetWars challenge XP is earned here. LeetCode profile links are not verified, and LeetCode statistics do not sync.</div>
+  </>
+}
+
+function ChallengeLeaderboardRow({ row }: { row: PublicChallengeLeaderboardEntry }) {
+  return <tr><td><span className={`rank rank-${row.challenge_rank}`}>{row.challenge_rank}</span></td><td><a className="warrior-cell player-link" href={`/players/${encodeURIComponent(row.public_id)}`}><span className="avatar">{row.display_name.slice(0, 2).toUpperCase()}</span><span><b>{row.display_name}</b><small>@{row.handle}</small></span></a></td><td>{row.challenges_solved}</td><td><strong>{row.challenge_xp.toLocaleString()}</strong></td></tr>
 }
 
 function Stat({ label, value }: { label: string; value: string }) { return <article className="stat-card"><span className="stat-label">{label}</span><strong>{value}</strong></article> }
